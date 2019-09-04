@@ -46,7 +46,7 @@ For module missing warnings/errors use PIP to install modules
 
   accountMap:
 
-    File location of the Cloud Account map. This provide the information for the script to send CloudView CSA Reports to the specified Slack Channel for each Cloud account. Default value is specified as "./cloud-accounts.csv"
+    File location of the Cloud Account map. This provides the information for the script to send CloudView CSA Reports to the specified Slack Channel for each Cloud account. Default value is specified as "./cloud-accounts.csv"
 
     *CSV File Requirements*
     *CSV columns* - cloud,name,accountId,BU,slackChannel,webHook
