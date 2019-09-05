@@ -78,15 +78,21 @@ This script is written in Python 2.7. It requires a command line argument(s) to 
 "-r scope" "--report scope"
 scope - accepts one of three input types
 
-AllAccount (case sensitive) - create report per account / slack channel defined in cloud_accounts.csv
+allAccount (case sensitive) - create report per account defined in cloud_accounts.csv
 
-BU - create report per account / slack channel  for the specified Business Unit defined in cloud_accounts.csv
+BU - create report per account for the specified Business Unit defined in cloud_accounts.csv
 
 Account - create a report for a single account ID specified in cloud_accounts.csv
 
+*Though listed as optional, one of the following command line arguments is require to run the script*
+*Both options can be used to create a CloudView Report and send to a Slack Channel and to a CSV in the reports directory*
+
+*Optional* Send CloudView Report to Slack webhook specified in cloud_accounts.csv
+"-s" "--slack"
+
 *Optional* Create CSV of report for each account in scope
 "-c" "--csv"
-Creates a report for each account in scope in the ./reports directory. If you wish to change the location of the reports modify lines 90, 152, & 153
+Creates a CSV report for each account in scope in the ./reports directory. If you wish to change the location of the reports modify lines 90, 152, & 153
 Line 90 sets the file path for the report
 Line 152/153 checks for the existence of the reports folder and creates "./reports" if it does not exist.
 

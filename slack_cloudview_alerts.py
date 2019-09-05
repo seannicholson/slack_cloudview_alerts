@@ -7,11 +7,10 @@
 #----------------------------------------------------------
 #  Script logic flow
 #  1 - process a CSV of account info (CSV columns name,accountId,slackChannel,webHook).
-#  2 - run the associated connectors
-#  3 - pull list of CSA evaluations by account
-#  4 - iterate list of evaluations and retrieve resources for control failures
-#  5 - post findings to the designated slack channel
-#  6 - write report findings to CSV if CLI --csv parameter is used
+#  2 - pull list of CSA evaluations by account
+#  3 - iterate list of failed evaluations and retrieve resources for control failures
+#  4 - If -c/--csv used, create CSV for each account report
+#  5 - if -s/--slack used, post findings to the designated slack channel
 #----------------------------------------------------------
 # Script Input parameters:
 # Required:
@@ -19,11 +18,12 @@
 # --report BU
 # --report accountId
 #
-# Optional
-# --csv
+# One parameter below is required, using both works as well
+# --csv, -c
+# --slack, -s
 #----------------------------------------------------------
-# version: 1.0.1
-# date: 9.04.2019
+# version: 1.0.2
+# date: 9.05.2019
 #----------------------------------------------------------
 
 import sys, requests, os, time, csv, getopt, logging, yaml, json, base64
@@ -78,14 +78,20 @@ def post_to_slack(scope):
             #print "{0}\n".format(json.dumps(row))
         if scope == "allAccounts":
             for row in accountInfo:
-                cloudviewReport(row['cloud'],row['accountId'], row['webHook'], URL, headers)
+                controlFailures = cloudviewReport(row['cloud'],row['accountId'], row['webHook'], URL, headers)
+                if args.slack:
+                    postSlackReport(controlFailures, row['accountId'], row['webHook'])
         else:
             for row in accountInfo:
                 if row['accountId'] == scope:
-                    cloudviewReport(row['cloud'],row['accountId'], row['webHook'], URL, headers)
+                    controlFailures = cloudviewReport(row['cloud'],row['accountId'], row['webHook'], URL, headers)
+                    if args.slack:
+                        postSlackReport(controlFailures, row['accountId'], row['webHook'])
                     break
                 elif row['BU'] == scope:
-                    cloudviewReport(row['cloud'],row['accountId'], row['webHook'], URL, headers)
+                    controlFailures = cloudviewReport(row['cloud'],row['accountId'], row['webHook'], URL, headers)
+                    if args.slack:
+                        postSlackReport(controlFailures, row['accountId'], row['webHook'])
 
 
 def cloudviewReport(cloud, accountID, webhook, URL, headers):
@@ -102,7 +108,6 @@ def cloudviewReport(cloud, accountID, webhook, URL, headers):
     logger.info("GET list of control evaluations for Account ID %s - run status code %s", str(accountID), rdata.status_code)
     controlFailures = []
     controlText = {}
-    slackData = {}
     controlList = json.loads(rdata.text)
     logger.debug("Length of control list content {}".format(len(controlList['content'])))
     for control in controlList['content']:
@@ -138,22 +143,31 @@ def cloudviewReport(cloud, accountID, webhook, URL, headers):
             logger.debug(controlText['text'])
 
             controlFailures.append(dict(controlText))
+    if args.csv:
+        ofile.close()
+    return controlFailures
 
+def postSlackReport (controlFailures, accountID, webhook):
+    slackData = {}
     slackData['attachments'] = controlFailures
     logger.debug(slackData['attachments'])
     #sc.api_call("chat.postMessage",channel="#cloudview-alerts",text="Test test test :tada:")
-    rdata3 = requests.post(webhook,json={"text": "CloudView CSA Results for {0}".format(str(accountID)),"attachments":slackData['attachments']}, headers={'Content-Type': 'application/json'})
-    logger.debug("Slack post status code %s", str(rdata3.status_code))
-    logger.debug("Slack response %s", rdata3.text)
-    ofile.close()
+    rdata = requests.post(webhook,json={"text": "CloudView CSA Results for {0}".format(str(accountID)),"attachments":slackData['attachments']}, headers={'Content-Type': 'application/json'})
+    logger.debug("Slack post status code %s", str(rdata.status_code))
+    logger.debug("Slack response %s", rdata.text)
+
 
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--report", "-r", help="(Required) Run report for specified accounts in scope: python slack_cloudview_alerts.py -r <scope> or python slack_cloudview_alerts.py --report <scope> **** Acceptable <scope> parameters are 'allAccounts', or a BU or accountId listed in cloud-accounts.csv")
-parser.add_argument("--csv", "-c", help="(Optional) Create a CSV for each CloudView Report", action="store_true")
+parser.add_argument("--csv", "-c", help="(Optional) Create a CSV for each CloudView Report, either --slack or --csv are required to run the script", action="store_true")
+parser.add_argument("--slack", "-s", help="(Optional) Send CloudView Report to specified Slack channel via Slack incoming webhook, either --slack or --csv are required to run the script", action="store_true")
 args = parser.parse_args()
 if not args.report:
     logger.warning("Scope is required to run script, please run python slack_cloudview_alerts.py -h for required command syntax")
+    sys.exit(1)
+if not args.csv and not args.slack:
+    logger.warning("Report type is required to run script, --slack and/or --csv are required, please run python slack_cloudview_alerts.py -h for required command syntax")
     sys.exit(1)
 if args.csv:
     if not os.path.exists("reports"):
