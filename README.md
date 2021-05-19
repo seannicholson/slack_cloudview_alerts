@@ -17,6 +17,7 @@ $QUALYS_API_USERNAME
 > QUALYS_API_USERNAME stores the Qualys API User Name
 
 > QUALYS_API_PASSWORD = Enter password when prompted.
+
 To store password as environment variable
 
 export $QUALYS_API_PASSWORD=APIpassword
